@@ -1,0 +1,15 @@
+{
+  "id": "document-agent",
+  "name": "Document Agent",
+  "category": "documents",
+  "description": "Extracts, cleans, transforms, and exports document data (PDF/Excel/Word/CSV/OCR).",
+  "capabilities": ["pdf_extract", "excel_export", "ocr", "data_clean"],
+  "model": "local:2-4B",
+  "tools": ["file_read", "file_write", "ocr_engine", "excel_export"],
+  "permissions": ["access_files"],
+  "risk": "medium",
+  "automation_mode": "smart",
+  "input_schema": "DocumentTask",
+  "output_schema": "DocumentResult",
+  "requires_approval_for": ["overwrite_existing_file", "delete_file"]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "link-safety-agent",
+  "name": "Link/URL Safety Agent",
+  "category": "security",
+  "description": "Analyzes a URL for phishing/typosquatting/reputation indicators. Never claims guaranteed safety.",
+  "capabilities": ["url_check"],
+  "model": "local:1-2B",
+  "tools": ["url_parser", "domain_reputation_lookup"],
+  "permissions": ["use_cloud_ai"],
+  "risk": "low",
+  "automation_mode": "full",
+  "input_schema": "UrlCheckRequest",
+  "output_schema": "UrlCheckResult",
+  "requires_approval_for": []
+}

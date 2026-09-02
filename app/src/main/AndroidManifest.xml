@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ===================================================================
+         PERMISSIONS — grouped by risk tier per blueprint Part 21.
+         Every dangerous/special permission below is requested at RUNTIME,
+         one capability at a time, from the Permission Center — never all
+         at install time. See core/security/PermissionManager.kt.
+         =================================================================== -->
+
+    <!-- Low risk — networking -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Medium risk — contacts, camera, mic (session-based grants) -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Medium/High risk — SMS. Only usable if this app is set as the
+         default SMS handler (Play Store policy requirement). -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+
+    <!-- Medium risk — read-only notification summarization -->
+    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+        tools:ignore="ProtectedPermissions" xmlns:tools="http://schemas.android.com/tools" />
+
+    <!-- High risk, POLICY-RESTRICTED as of 2026 (see blueprint Part 11 / Part 37).
+         Declared here for the sideloaded/personal-use build variant ONLY.
+         Do not enable isAccessibilityTool or ship this to Play with this
+         declared unless the app genuinely qualifies as an accessibility tool. -->
+    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE"
+        tools:ignore="ProtectedPermissions" xmlns:tools="http://schemas.android.com/tools" />
+
+    <!-- High risk — device lock only. Full wipe requires Device Owner
+         provisioning at initial setup and is intentionally NOT requested here. -->
+    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN"
+        tools:ignore="ProtectedPermissions" xmlns:tools="http://schemas.android.com/tools" />
+
+    <application
+        android:name=".AutomationOsApp"
+        android:allowBackup="false"
+        android:label="Personal AI Automation OS"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/Theme.AutomationOS"
+        android:usesCleartextTraffic="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AutomationOS">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Read-only inbox summarization. User must enable manually in
+             system settings; this is never auto-granted. -->
+        <service
+            android:name=".integrations.NotificationListener"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Foreground service running the Head Agent's workflow engine for
+             scheduled/background automations (e.g. daily job search). -->
+        <service
+            android:name=".core.orchestrator.HeadAgentForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+    </application>
+</manifest>

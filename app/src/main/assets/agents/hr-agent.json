@@ -1,0 +1,16 @@
+{
+  "id": "hr-agent",
+  "name": "HR Agent",
+  "category": "hr",
+  "description": "Answers attendance, leave, overtime, and payroll-input questions from local employee data.",
+  "capabilities": ["hr_query", "attendance_report", "leave_report", "overtime_report"],
+  "model": "local:1-3B",
+  "tools": ["hr_database_read", "excel_export"],
+  "permissions": ["access_hr_database"],
+  "risk": "high",
+  "automation_mode": "manual",
+  "input_schema": "HrQuery",
+  "output_schema": "HrReport",
+  "requires_approval_for": ["export_full_payroll", "share_employee_record_externally"],
+  "data_residency": "local_only"
+}

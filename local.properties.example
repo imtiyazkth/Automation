@@ -1,0 +1,9 @@
+# Copy this file to local.properties (which is gitignored) and fill in
+# your own values. NEVER commit real keys/tokens.
+
+sdk.dir=/path/to/Android/sdk
+
+GEMINI_API_KEY=
+WHATSAPP_CLOUD_API_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+TELEGRAM_BOT_TOKEN=

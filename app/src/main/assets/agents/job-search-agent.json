@@ -1,0 +1,15 @@
+{
+  "id": "job-search-agent",
+  "name": "Job Search Agent",
+  "category": "jobs",
+  "description": "Parses resume, searches public job sources via Gemini, verifies freshness, ranks matches. Never auto-applies.",
+  "capabilities": ["resume_parse", "job_search", "job_match", "job_rank"],
+  "model": "local:2-4B + gemini",
+  "tools": ["resume_parser", "web_search_gemini", "excel_export"],
+  "permissions": ["use_cloud_ai", "access_files"],
+  "risk": "low",
+  "automation_mode": "smart",
+  "input_schema": "JobSearchRequest",
+  "output_schema": "JobSearchReport",
+  "requires_approval_for": ["submit_application"]
+}

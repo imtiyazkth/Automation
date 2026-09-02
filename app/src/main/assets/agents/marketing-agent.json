@@ -1,0 +1,16 @@
+{
+  "id": "marketing-agent",
+  "name": "Marketing Agent",
+  "category": "growth",
+  "description": "Classifies inbound business-channel messages and drafts scoped, business-related replies (orders, product FAQs, store hours). Never engages in open-domain conversation, to stay compliant with WhatsApp Business Platform rules.",
+  "capabilities": ["classify_message", "draft_reply", "create_lead"],
+  "model": "local:1-3B",
+  "tools": ["whatsapp_business_send", "crm_write"],
+  "permissions": ["read_whatsapp_business", "send_whatsapp_business", "crm_write"],
+  "risk": "medium",
+  "automation_mode": "smart",
+  "input_schema": "InboundMessage",
+  "output_schema": "MarketingResponse",
+  "requires_approval_for": ["first_message_to_new_number", "any_pricing_commitment", "any_off_topic_question"],
+  "scope_restriction": "business_intents_only"
+}
