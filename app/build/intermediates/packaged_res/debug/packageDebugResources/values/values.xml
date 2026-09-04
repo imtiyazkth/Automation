@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="os_accent">#FF37E29A</color>
+    <color name="os_background">#FF0B0F0E</color>
+    <color name="os_primary">#FF1B4B43</color>
+    <string name="app_name">Personal AI Automation OS</string>
+    <style name="Theme.AutomationOS" parent="android:Theme.Material.NoActionBar"/>
+</resources>
