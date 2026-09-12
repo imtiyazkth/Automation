@@ -2,11 +2,11 @@ package com.personalai.os.core.agents
 
 /**
  * Mirrors the agent.json schema from the blueprint (Part 24). This is a
- * *descriptive* registry entry - identity, permissions, risk, approval
- * rules - loaded from assets/agents/*.json. It is deliberately separate
- * from the [Agent] interface (the executable behavior): the Head Agent
- * checks permissions/risk against this definition BEFORE ever invoking
- * the matching Agent implementation.
+ * descriptive registry entry - identity, permissions, risk, approval
+ * rules - loaded from JSON files under assets/agents/. It is deliberately
+ * separate from the [Agent] interface (the executable behavior): the Head
+ * Agent checks permissions/risk against this definition BEFORE ever
+ * invoking the matching Agent implementation.
  */
 data class AgentDefinition(
     val id: String,

@@ -6,11 +6,12 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 /**
- * Loads every assets/agents/*.json definition at startup and keeps both the
- * descriptive [AgentDefinition]s and the executable [Agent] implementations
- * that have been registered against them. This is what lets new agents be
- * added later by dropping in a new JSON file + implementation and
- * registering it here - no changes to the Head Agent itself.
+ * Loads every JSON definition under assets/agents/ at startup and keeps
+ * both the descriptive [AgentDefinition]s and the executable [Agent]
+ * implementations that have been registered against them. This is what
+ * lets new agents be added later by dropping in a new JSON file +
+ * implementation and registering it here - no changes to the Head Agent
+ * itself.
  */
 class AgentRegistry(private val context: Context) {
 
