@@ -10,16 +10,6 @@ import com.personalai.os.core.security.PolicyDecision
 import com.personalai.os.core.security.PolicyEngine
 import java.util.UUID
 
-/**
- * The single entity the user talks to. Implements the pipeline from
- * blueprint Part 6:
- *   request -> intent -> plan -> permission check -> security check ->
- *   agent selection -> execute -> observe -> verify -> approval? ->
- *   complete -> audit -> report
- *
- * This class deliberately contains NO business logic of its own beyond
- * orchestration - every actual capability lives in a registered [Agent].
- */
 class HeadAgent(
     private val intentDetector: IntentDetector,
     private val taskPlanner: TaskPlanner,
@@ -32,13 +22,26 @@ class HeadAgent(
 
     suspend fun handle(userInput: String): List<ExecutionReport> {
         val intent = intentDetector.detect(userInput)
+
+        // "help" has no side effects, so it bypasses agent selection and
+        // the policy engine entirely rather than needing its own fake agent.
+        if (intent.intentType == "help") {
+            val capabilities = registry.all().joinToString("\n") { "- ${it.name}: ${it.description}" }
+            return listOf(ExecutionReport.Success("Here's what I can currently help with:\n$capabilities"))
+        }
+
         val plan = taskPlanner.plan(intent)
 
         if (plan.steps.isEmpty()) {
+            val message = if (intent.intentType != "unknown") {
+                "I understood that as a '${intent.intentType}' request, but no agent is wired up to handle it yet."
+            } else {
+                "I'm not sure what you'd like me to do with: \"$userInput\""
+            }
             return listOf(
                 ExecutionReport.RequiresUserAction(
-                    message = "I'm not sure what you'd like me to do with: \"$userInput\"",
-                    reason = "No matching intent (confidence=${intent.confidence}, source=${intent.source})"
+                    message = message,
+                    reason = "No task plan for intent '${intent.intentType}' (confidence=${intent.confidence}, source=${intent.source})"
                 )
             )
         }
@@ -47,8 +50,6 @@ class HeadAgent(
         val completedStepIds = mutableSetOf<String>()
 
         for (step in plan.steps) {
-            // Respect declared ordering - a step whose dependencies haven't
-            // completed is deferred rather than silently run out of order.
             if (step.dependsOn.any { it !in completedStepIds }) {
                 reports.add(ExecutionReport.PartialSuccess(
                     message = "Step '${step.action}' deferred - waiting on ${step.dependsOn}",

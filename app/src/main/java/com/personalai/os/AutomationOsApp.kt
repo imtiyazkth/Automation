@@ -14,6 +14,7 @@ import com.personalai.os.core.ai.GeminiProvider
 import com.personalai.os.core.ai.LocalAiProvider
 import com.personalai.os.core.ai.PrivacyGateway
 import com.personalai.os.core.automation.ApprovalManager
+import com.personalai.os.core.automation.AutomationMode
 import com.personalai.os.core.automation.InMemoryAutomationModeStore
 import com.personalai.os.core.orchestrator.HeadAgent
 import com.personalai.os.core.orchestrator.IntentDetector
@@ -32,14 +33,6 @@ import com.personalai.os.tools.LinkReputationTool
 import com.personalai.os.tools.PdfExtractTool
 import java.io.File
 
-/**
- * Hand-rolled composition root. A real project should replace this with
- * Hilt/Koin, but a plain object graph keeps this scaffold dependency-free
- * and easy to read end-to-end in one file.
- *
- * See AppDatabase.kt for the note on wrapping this with SQLCipher before
- * shipping - this scaffold builds an UNencrypted Room DB.
- */
 class AutomationOsApp : Application() {
 
     lateinit var database: AppDatabase
@@ -58,21 +51,18 @@ class AutomationOsApp : Application() {
 
         database = Room.databaseBuilder(this, AppDatabase::class.java, "automation_os.db").build()
 
-        // --- security / permissions / audit -------------------------------
-        val permissionStore = InMemoryPermissionStore() // swap for PermissionDao-backed store
+        val permissionStore = InMemoryPermissionStore()
         permissionManager = PermissionManager(permissionStore)
-        val auditLogger = InMemoryAuditLogger()          // swap for AuditDao-backed logger
+        val auditLogger = InMemoryAuditLogger()
         val policyEngine = PolicyEngine(permissionManager)
         val modeStore = InMemoryAutomationModeStore()
         val approvalManager = ApprovalManager()
 
-        // --- AI -------------------------------------------------------------
-        val localAi = LocalAiProvider(modelLoaded = false) // flip once a runtime is wired in
+        val localAi = LocalAiProvider(modelLoaded = false)
         val geminiProvider = GeminiProvider()
         val privacyGateway = PrivacyGateway()
         val aiRouter = AiRouter(localAi, geminiProvider, privacyGateway)
 
-        // --- agent registry ---------------------------------------------
         agentRegistry = AgentRegistry(this)
         agentRegistry.loadDefinitions()
 
@@ -90,7 +80,26 @@ class AutomationOsApp : Application() {
         agentRegistry.register(JobSearchAgent(aiRouter, excelExportTool))
         agentRegistry.register(CommunicationAgent(whatsAppClient))
 
-        // --- orchestration ------------------------------------------------
+        // =====================================================================
+        // DEV/TEST-ONLY BYPASS - debug builds only (guarded by BuildConfig.DEBUG,
+        // so a release build never gets this). Grants every permission every
+        // agent declares and sets automation to FULL, purely so the Head Agent
+        // -> Agent pipeline is testable from the chat screen before a real
+        // Permission Center / Automation Mode UI exists.
+        //
+        // ONCE YOU WIRE IN REAL WhatsApp/Telegram/Gemini CREDENTIALS, REMOVE
+        // THIS - it currently means the app will act on any granted-permission
+        // action with zero confirmation, which is fine while everything is
+        // still stubbed/unconfigured, and NOT fine once messages can actually
+        // send for real.
+        // =====================================================================
+        if (BuildConfig.DEBUG) {
+            agentRegistry.all().forEach { def ->
+                def.permissions.forEach { permissionManager.grant(it, grantedBy = "dev_bypass") }
+            }
+            modeStore.setGlobalMode(AutomationMode.FULL)
+        }
+
         val intentDetector = IntentDetector(aiRouter)
         val taskPlanner = TaskPlanner()
         headAgent = HeadAgent(

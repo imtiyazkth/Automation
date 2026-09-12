@@ -14,6 +14,7 @@ class IntentDetector(private val aiRouter: AiRouter) {
     // Keyword -> intent map used by the rule-based fallback. Order matters:
     // first match wins, so more specific phrases should be checked first.
     private val fallbackRules: List<Pair<Regex, String>> = listOf(
+        Regex("what can you do|help me|show help|capabilities|what commands", RegexOption.IGNORE_CASE) to "help",
         Regex("absent|on leave|overtime|attendance|payroll|resign", RegexOption.IGNORE_CASE) to "hr_query",
         Regex("job|resume|vacancy|hiring|posted.*hour", RegexOption.IGNORE_CASE) to "job_search",
         Regex("pdf|excel|convert|extract.*table|ocr|spreadsheet", RegexOption.IGNORE_CASE) to "document_task",
