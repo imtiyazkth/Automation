@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import com.personalai.os.data.dao.AttendanceDao
 import com.personalai.os.data.dao.AuditDao
 import com.personalai.os.data.dao.CrmDao
+import com.personalai.os.data.dao.JobEvaluationDao
 import com.personalai.os.data.dao.MessageDao
 import com.personalai.os.data.dao.PermissionDao
 import com.personalai.os.data.entities.AgentPermissionEntity
@@ -14,6 +15,7 @@ import com.personalai.os.data.entities.AuditLogEntity
 import com.personalai.os.data.entities.ContactEntity
 import com.personalai.os.data.entities.CrmLeadEntity
 import com.personalai.os.data.entities.EmployeeEntity
+import com.personalai.os.data.entities.JobEvaluationEntity
 import com.personalai.os.data.entities.LeaveEntity
 import com.personalai.os.data.entities.MemoryEntity
 import com.personalai.os.data.entities.MessageEntity
@@ -31,7 +33,7 @@ import com.personalai.os.data.entities.WorkflowEntity
         ContactEntity::class, MessageEntity::class,
         CrmLeadEntity::class, OrderEntity::class,
         EmployeeEntity::class, AttendanceEntity::class, LeaveEntity::class, OvertimeEntity::class,
-        WorkflowEntity::class, RuleEntity::class
+        WorkflowEntity::class, RuleEntity::class, JobEvaluationEntity::class
     ],
     version = 1,
     exportSchema = false
@@ -42,4 +44,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun auditDao(): AuditDao
     abstract fun permissionDao(): PermissionDao
     abstract fun messageDao(): MessageDao
+    abstract fun jobEvaluationDao(): JobEvaluationDao
 }

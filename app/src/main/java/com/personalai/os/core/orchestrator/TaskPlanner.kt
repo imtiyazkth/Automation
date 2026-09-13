@@ -1,14 +1,8 @@
 package com.personalai.os.core.orchestrator
 
-/**
- * Turns a [DetectedIntent] into an ordered [TaskPlan]. Compound requests
- * ("read this PDF, convert it, save it, tell me the total") should end up
- * as multiple TaskSteps with explicit dependsOn ordering rather than one
- * opaque call - see blueprint Part 6, Task Decomposition.
- */
 class TaskPlanner {
 
-    fun plan(intent: com.personalai.os.core.orchestrator.DetectedIntent): TaskPlan {
+    fun plan(intent: DetectedIntent): TaskPlan {
         val steps = when (intent.intentType) {
             "hr_query" -> listOf(
                 TaskStep(id = "s1", agentId = "hr-agent", action = "query", params = intent.slots)
@@ -17,6 +11,12 @@ class TaskPlanner {
                 TaskStep(id = "s1", agentId = "job-search-agent", action = "parse_resume"),
                 TaskStep(id = "s2", agentId = "job-search-agent", action = "search", dependsOn = listOf("s1")),
                 TaskStep(id = "s3", agentId = "job-search-agent", action = "rank_and_report", dependsOn = listOf("s2"))
+            )
+            "job_evaluate" -> listOf(
+                TaskStep(
+                    id = "s1", agentId = "career-ops-agent", action = "evaluate",
+                    params = mapOf("job_description" to intent.rawText)
+                )
             )
             "document_task" -> listOf(
                 TaskStep(id = "s1", agentId = "document-agent", action = "extract"),

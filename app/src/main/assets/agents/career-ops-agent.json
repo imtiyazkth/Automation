@@ -1,0 +1,16 @@
+{
+  "id": "career-ops-agent",
+  "name": "Career Ops Agent",
+  "category": "jobs",
+  "description": "Evaluates a pasted job description into a structured A-H report with a holistic 1-5 score, inspired by the open-source career-ops project. Has no submit/apply/send capability at all - evaluation and local tracking only.",
+  "capabilities": ["evaluate_job_offer"],
+  "model": "local:2-4B + gemini",
+  "tools": ["web_search_gemini"],
+  "permissions": ["use_cloud_ai"],
+  "risk": "low",
+  "automation_mode": "smart",
+  "input_schema": "JobOfferEvaluationRequest",
+  "output_schema": "JobOfferEvaluationReport",
+  "requires_approval_for": [],
+  "scope_restriction": "evaluation_and_tracking_only_never_applies"
+}

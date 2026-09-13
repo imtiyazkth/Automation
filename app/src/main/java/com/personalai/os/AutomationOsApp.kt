@@ -3,6 +3,7 @@ package com.personalai.os
 import android.app.Application
 import androidx.room.Room
 import com.personalai.os.core.agents.AgentRegistry
+import com.personalai.os.core.agents.CareerOpsAgent
 import com.personalai.os.core.agents.CommunicationAgent
 import com.personalai.os.core.agents.DocumentAgent
 import com.personalai.os.core.agents.HrAgent
@@ -87,6 +88,7 @@ class AutomationOsApp : Application() {
         agentRegistry.register(LinkSafetyAgent(linkReputationTool))
         agentRegistry.register(JobSearchAgent(aiRouter, excelExportTool))
         agentRegistry.register(CommunicationAgent(whatsAppClient))
+        agentRegistry.register(CareerOpsAgent(aiRouter, database.jobEvaluationDao()))
 
         if (BuildConfig.DEBUG) {
             agentRegistry.all().forEach { def ->
