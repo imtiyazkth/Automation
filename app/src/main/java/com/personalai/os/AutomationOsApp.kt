@@ -15,10 +15,12 @@ import com.personalai.os.core.ai.LocalAiProvider
 import com.personalai.os.core.ai.PrivacyGateway
 import com.personalai.os.core.automation.ApprovalManager
 import com.personalai.os.core.automation.AutomationMode
+import com.personalai.os.core.automation.AutomationModeStore
 import com.personalai.os.core.automation.InMemoryAutomationModeStore
 import com.personalai.os.core.orchestrator.HeadAgent
 import com.personalai.os.core.orchestrator.IntentDetector
 import com.personalai.os.core.orchestrator.TaskPlanner
+import com.personalai.os.core.security.AuditLogger
 import com.personalai.os.core.security.InMemoryAuditLogger
 import com.personalai.os.core.security.InMemoryPermissionStore
 import com.personalai.os.core.security.PermissionManager
@@ -45,6 +47,12 @@ class AutomationOsApp : Application() {
         private set
     lateinit var permissionManager: PermissionManager
         private set
+    lateinit var modeStore: AutomationModeStore
+        private set
+    lateinit var approvalManager: ApprovalManager
+        private set
+    lateinit var auditLogger: AuditLogger
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -53,10 +61,10 @@ class AutomationOsApp : Application() {
 
         val permissionStore = InMemoryPermissionStore()
         permissionManager = PermissionManager(permissionStore)
-        val auditLogger = InMemoryAuditLogger()
+        auditLogger = InMemoryAuditLogger()
         val policyEngine = PolicyEngine(permissionManager)
-        val modeStore = InMemoryAutomationModeStore()
-        val approvalManager = ApprovalManager()
+        modeStore = InMemoryAutomationModeStore()
+        approvalManager = ApprovalManager()
 
         val localAi = LocalAiProvider(modelLoaded = false)
         val geminiProvider = GeminiProvider()
@@ -80,19 +88,6 @@ class AutomationOsApp : Application() {
         agentRegistry.register(JobSearchAgent(aiRouter, excelExportTool))
         agentRegistry.register(CommunicationAgent(whatsAppClient))
 
-        // =====================================================================
-        // DEV/TEST-ONLY BYPASS - debug builds only (guarded by BuildConfig.DEBUG,
-        // so a release build never gets this). Grants every permission every
-        // agent declares and sets automation to FULL, purely so the Head Agent
-        // -> Agent pipeline is testable from the chat screen before a real
-        // Permission Center / Automation Mode UI exists.
-        //
-        // ONCE YOU WIRE IN REAL WhatsApp/Telegram/Gemini CREDENTIALS, REMOVE
-        // THIS - it currently means the app will act on any granted-permission
-        // action with zero confirmation, which is fine while everything is
-        // still stubbed/unconfigured, and NOT fine once messages can actually
-        // send for real.
-        // =====================================================================
         if (BuildConfig.DEBUG) {
             agentRegistry.all().forEach { def ->
                 def.permissions.forEach { permissionManager.grant(it, grantedBy = "dev_bypass") }

@@ -23,8 +23,6 @@ class HeadAgent(
     suspend fun handle(userInput: String): List<ExecutionReport> {
         val intent = intentDetector.detect(userInput)
 
-        // "help" has no side effects, so it bypasses agent selection and
-        // the policy engine entirely rather than needing its own fake agent.
         if (intent.intentType == "help") {
             val capabilities = registry.all().joinToString("\n") { "- ${it.name}: ${it.description}" }
             return listOf(ExecutionReport.Success("Here's what I can currently help with:\n$capabilities"))
@@ -85,7 +83,7 @@ class HeadAgent(
                         )
                     )
                     reports.add(ExecutionReport.RequiresUserAction(
-                        message = "Needs your approval: ${agentDef.name} -> ${step.action}",
+                        message = "Needs your approval: ${agentDef.name} -> ${step.action}. Check the Approvals tab.",
                         reason = decision.reason
                     ))
                     auditLogger.log(AuditEntry(System.currentTimeMillis(), "head-agent", step.action, step.agentId, "REQUIRES_USER_ACTION", decision.reason))
@@ -109,6 +107,23 @@ class HeadAgent(
         }
 
         return reports
+    }
+
+    suspend fun executeApproved(approval: PendingApproval): ExecutionReport {
+        val step = approval.step
+        val agentDef = registry.definitionOf(step.agentId)
+            ?: return ExecutionReport.Failed("No registered agent for id '${step.agentId}'")
+        val agentImpl = registry.implementationOf(step.agentId)
+            ?: return ExecutionReport.Failed("Agent '${step.agentId}' has a definition but no registered implementation yet")
+
+        val result = runCatching { agentImpl.execute(step) }
+            .getOrElse { ExecutionReport.Failed("Unhandled error in '${step.agentId}'", it) }
+
+        auditLogger.log(AuditEntry(
+            System.currentTimeMillis(), step.agentId, step.action, agentDef.name,
+            resultLabel(result), "approved by user - ${result.message}"
+        ))
+        return result
     }
 
     private fun resultLabel(report: ExecutionReport): String = when (report) {
