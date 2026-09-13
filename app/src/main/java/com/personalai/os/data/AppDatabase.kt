@@ -35,7 +35,7 @@ import com.personalai.os.data.entities.WorkflowEntity
         EmployeeEntity::class, AttendanceEntity::class, LeaveEntity::class, OvertimeEntity::class,
         WorkflowEntity::class, RuleEntity::class, JobEvaluationEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

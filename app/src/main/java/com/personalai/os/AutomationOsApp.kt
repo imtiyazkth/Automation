@@ -58,7 +58,14 @@ class AutomationOsApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        database = Room.databaseBuilder(this, AppDatabase::class.java, "automation_os.db").build()
+        // fallbackToDestructiveMigration(): if the schema ever changes again
+        // without a real migration written, Room will WIPE and recreate the
+        // local database instead of crashing. Fine for an early-stage
+        // personal build where losing test data is a non-issue - swap for
+        // real Migration objects once this app holds data you care about.
+        database = Room.databaseBuilder(this, AppDatabase::class.java, "automation_os.db")
+            .fallbackToDestructiveMigration()
+            .build()
 
         val permissionStore = InMemoryPermissionStore()
         permissionManager = PermissionManager(permissionStore)
