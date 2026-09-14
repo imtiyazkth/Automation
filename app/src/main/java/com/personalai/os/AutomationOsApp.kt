@@ -58,11 +58,6 @@ class AutomationOsApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // fallbackToDestructiveMigration(): if the schema ever changes again
-        // without a real migration written, Room will WIPE and recreate the
-        // local database instead of crashing. Fine for an early-stage
-        // personal build where losing test data is a non-issue - swap for
-        // real Migration objects once this app holds data you care about.
         database = Room.databaseBuilder(this, AppDatabase::class.java, "automation_os.db")
             .fallbackToDestructiveMigration()
             .build()
@@ -82,7 +77,13 @@ class AutomationOsApp : Application() {
         agentRegistry = AgentRegistry(this)
         agentRegistry.loadDefinitions()
 
-        val outputDir = File(getExternalFilesDir(null), "reports")
+        // FIX: getExternalFilesDir(null) can return null if external storage
+        // isn't currently available (common on some devices, especially
+        // right after a fresh install). Falling back to filesDir (internal
+        // app storage, always available, never null) instead of crashing
+        // the whole app in Application.onCreate() - this was almost
+        // certainly why the app installed but never opened.
+        val outputDir = File(getExternalFilesDir(null) ?: filesDir, "reports")
         val excelExportTool = ExcelExportTool(outputDir)
         val pdfExtractTool = PdfExtractTool()
         val linkReputationTool = LinkReputationTool()
