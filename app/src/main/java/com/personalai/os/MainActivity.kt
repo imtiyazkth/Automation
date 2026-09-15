@@ -32,6 +32,8 @@ import com.personalai.os.ui.chat.ChatViewModel
 import com.personalai.os.ui.chat.HeadAgentChatScreen
 import com.personalai.os.ui.dashboard.DashboardScreen
 import com.personalai.os.ui.dashboard.DashboardViewModel
+import com.personalai.os.ui.diagnostics.DiagnosticsScreen
+import com.personalai.os.ui.diagnostics.DiagnosticsViewModel
 import com.personalai.os.ui.permissioncenter.PermissionCenterScreen
 import com.personalai.os.ui.permissioncenter.PermissionCenterViewModel
 import com.personalai.os.ui.theme.AutomationOsTheme
@@ -121,6 +123,10 @@ class MainActivity : ComponentActivity() {
                                 AuditLogViewModel(app.auditLogger)
                             })
                             AuditLogScreen(vm)
+                        }
+                        composable(Screen.Diagnostics.route) {
+                            val vm: DiagnosticsViewModel = viewModel(factory = simpleFactory { DiagnosticsViewModel() })
+                            DiagnosticsScreen(vm)
                         }
                     }
                 }

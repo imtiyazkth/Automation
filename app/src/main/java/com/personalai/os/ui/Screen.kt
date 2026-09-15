@@ -7,8 +7,9 @@ sealed class Screen(val route: String, val label: String, val emoji: String) {
     object Agents : Screen("agents", "Agents", "\uD83E\uDD16")
     object Permissions : Screen("permissions", "Permissions", "\uD83D\uDD10")
     object Audit : Screen("audit", "Audit", "\uD83D\uDCDC")
+    object Diagnostics : Screen("diagnostics", "Diagnostics", "\uD83E\uDE7A")
 
     companion object {
-        val bottomBarScreens = listOf(Chat, Dashboard, Approvals, Agents, Permissions, Audit)
+        val bottomBarScreens = listOf(Chat, Dashboard, Approvals, Agents, Permissions, Audit, Diagnostics)
     }
 }

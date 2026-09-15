@@ -1,6 +1,7 @@
 package com.personalai.os
 
 import android.app.Application
+import android.util.Log
 import androidx.room.Room
 import com.personalai.os.core.agents.AgentRegistry
 import com.personalai.os.core.agents.CareerOpsAgent
@@ -34,6 +35,7 @@ import com.personalai.os.integrations.whatsapp.WhatsAppBusinessClient
 import com.personalai.os.tools.ExcelExportTool
 import com.personalai.os.tools.LinkReputationTool
 import com.personalai.os.tools.PdfExtractTool
+import com.personalai.os.util.CrashLogger
 import java.io.File
 
 class AutomationOsApp : Application() {
@@ -58,6 +60,21 @@ class AutomationOsApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        try {
+            CrashLogger.init(this)
+        } catch (e: Exception) {
+            Log.e("AutomationOsApp", "CrashLogger init failed", e)
+        }
+
+        runCatching {
+            initializeCore()
+        }.onFailure { e ->
+            CrashLogger.logException("AutomationOsApp", "initializeCore() failed", e)
+            throw e
+        }
+    }
+
+    private fun initializeCore() {
         database = Room.databaseBuilder(this, AppDatabase::class.java, "automation_os.db")
             .fallbackToDestructiveMigration()
             .build()
@@ -77,12 +94,6 @@ class AutomationOsApp : Application() {
         agentRegistry = AgentRegistry(this)
         agentRegistry.loadDefinitions()
 
-        // FIX: getExternalFilesDir(null) can return null if external storage
-        // isn't currently available (common on some devices, especially
-        // right after a fresh install). Falling back to filesDir (internal
-        // app storage, always available, never null) instead of crashing
-        // the whole app in Application.onCreate() - this was almost
-        // certainly why the app installed but never opened.
         val outputDir = File(getExternalFilesDir(null) ?: filesDir, "reports")
         val excelExportTool = ExcelExportTool(outputDir)
         val pdfExtractTool = PdfExtractTool()
