@@ -22,6 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.personalai.os.ui.Screen
+import com.personalai.os.ui.bottomBarScreens
 import com.personalai.os.ui.agentcenter.AgentCenterScreen
 import com.personalai.os.ui.agentcenter.AgentCenterViewModel
 import com.personalai.os.ui.approvals.ApprovalScreen
@@ -56,7 +57,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = backStackEntry?.destination?.route ?: Screen.Chat.route
-                val currentTitle = Screen.bottomBarScreens.firstOrNull { it.route == currentRoute }?.label
+                val currentTitle = bottomBarScreens.firstOrNull { it.route == currentRoute }?.label
                     ?: "Personal AI Automation OS"
 
                 Scaffold(
@@ -64,7 +65,7 @@ class MainActivity : ComponentActivity() {
                     bottomBar = {
                         NavigationBar {
                             val currentDestination = backStackEntry?.destination
-                            Screen.bottomBarScreens.forEach { screen ->
+                            bottomBarScreens.forEach { screen ->
                                 val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                                 NavigationBarItem(
                                     selected = selected,
