@@ -10,33 +10,51 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.personalai.os.ui.theme.OsAccent
+import com.personalai.os.ui.theme.OsAiBubble
+import com.personalai.os.ui.theme.OsOnSurfaceMuted
+import com.personalai.os.ui.theme.OsUserBubble
+
+private val suggestions = listOf(
+    "What can you do?",
+    "Who is absent today?",
+    "Check this link: https://example.com"
+)
 
 @Composable
 fun HeadAgentChatScreen(viewModel: ChatViewModel) {
     val messages by viewModel.messages.collectAsState()
     var input by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val listState = rememberLazyListState()
 
     val speechLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -51,49 +69,104 @@ fun HeadAgentChatScreen(viewModel: ChatViewModel) {
 
     val micPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            speechLauncher.launch(buildSpeechIntent())
-        }
+    ) { granted -> if (granted) speechLauncher.launch(buildSpeechIntent()) }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
     }
 
     Column(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(12.dp)) {
-            items(messages) { msg ->
-                Surface(
-                    color = if (msg.fromUser) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) {
-                    Text(
-                        text = (if (msg.fromUser) "You: " else "AI: ") + msg.text,
-                        modifier = Modifier.padding(10.dp)
-                    )
-                }
+        if (messages.isEmpty()) {
+            WelcomeState(onSuggestionTap = { viewModel.send(it) })
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item { Spacer(Modifier.height(8.dp)) }
+                items(messages) { msg -> ChatBubble(msg) }
+                item { Spacer(Modifier.height(8.dp)) }
             }
         }
+
         Row(
             Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedButton(onClick = {
-                val hasMic = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                    PackageManager.PERMISSION_GRANTED
-                if (hasMic) {
-                    speechLauncher.launch(buildSpeechIntent())
-                } else {
-                    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                }
-            }) { Text("\uD83C\uDFA4") }
+            OutlinedButton(
+                onClick = {
+                    val hasMic = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                        PackageManager.PERMISSION_GRANTED
+                    if (hasMic) speechLauncher.launch(buildSpeechIntent())
+                    else micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                },
+                shape = MaterialTheme.shapes.extraLarge,
+                contentPadding = ButtonDefaults.TextButtonContentPadding
+            ) { Text("\uD83C\uDFA4") }
 
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                placeholder = { Text("Type a command...") }
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.large,
+                placeholder = { Text("Type a command\u2026") }
             )
-            Button(onClick = { if (input.isNotBlank()) { viewModel.send(input); input = "" } }) {
-                Text("Send")
+            Button(
+                onClick = { if (input.isNotBlank()) { viewModel.send(input); input = "" } },
+                shape = MaterialTheme.shapes.large
+            ) { Text("Send") }
+        }
+    }
+}
+
+@Composable
+private fun WelcomeState(onSuggestionTap: (String) -> Unit) {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Hi \u2014 I'm your Head Agent.", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Ask me anything, or try one of these:",
+            style = MaterialTheme.typography.bodyMedium,
+            color = OsOnSurfaceMuted,
+            modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+        )
+        suggestions.forEach { suggestion ->
+            OutlinedButton(
+                onClick = { onSuggestionTap(suggestion) },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text(suggestion, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatBubble(msg: ChatMessage) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = if (msg.fromUser) Arrangement.End else Arrangement.Start
+    ) {
+        Surface(
+            color = if (msg.fromUser) OsUserBubble else OsAiBubble,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.widthIn(max = 300.dp)
+        ) {
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                if (!msg.fromUser) {
+                    Text(
+                        "HEAD AGENT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OsAccent,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+                Text(msg.text, style = MaterialTheme.typography.bodyLarge)
             }
         }
     }

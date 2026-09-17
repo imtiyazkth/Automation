@@ -57,8 +57,9 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = backStackEntry?.destination?.route ?: Screen.Chat.route
-                val currentTitle = bottomBarScreens.firstOrNull { it.route == currentRoute }?.label
-                    ?: "Personal AI Automation OS"
+                val currentTitle = bottomBarScreens.firstOrNull { it.route == currentRoute }?.let {
+                    if (it == Screen.Chat) "Personal AI Automation OS" else it.label
+                } ?: "Personal AI Automation OS"
 
                 Scaffold(
                     topBar = { TopAppBar(title = { Text(currentTitle) }) },
@@ -69,6 +70,7 @@ class MainActivity : ComponentActivity() {
                                 val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                                 NavigationBarItem(
                                     selected = selected,
+                                    alwaysShowLabel = false,
                                     onClick = {
                                         navController.navigate(screen.route) {
                                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -77,7 +79,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                     },
                                     icon = { Text(screen.emoji) },
-                                    label = { Text(screen.label) }
+                                    label = { Text(screen.label, maxLines = 1) }
                                 )
                             }
                         }
