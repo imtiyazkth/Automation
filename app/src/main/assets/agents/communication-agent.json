@@ -2,14 +2,14 @@
   "id": "communication-agent",
   "name": "Communication Agent",
   "category": "communication",
-  "description": "Routes and drafts messages across WhatsApp Business, Telegram bot, SMS, and Email. Applies user-approved rules such as busy-status auto-replies.",
-  "capabilities": ["send_message", "apply_rule", "summarize_inbox"],
+  "description": "Sends messages via personal WhatsApp (opens a pre-filled chat, you tap Send), WhatsApp Business API, or a Telegram bot, depending on what's configured and what platform you name. Never silently claims success - only reports it when the underlying channel actually confirmed something.",
+  "capabilities": ["send_message"],
   "model": "local:1-3B",
-  "tools": ["whatsapp_business_send", "telegram_send", "sms_send", "email_send"],
-  "permissions": ["read_contacts", "send_sms", "read_notifications"],
+  "tools": ["android_intent", "whatsapp_business_send", "telegram_send"],
+  "permissions": [],
   "risk": "medium",
   "automation_mode": "manual",
   "input_schema": "CommunicationRequest",
   "output_schema": "CommunicationResult",
-  "requires_approval_for": ["message_to_new_or_unknown_recipient", "bulk_send"]
+  "requires_approval_for": []
 }

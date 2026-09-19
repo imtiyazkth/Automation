@@ -32,6 +32,7 @@ class IntentDetector(private val aiRouter: AiRouter) {
         val match = fallbackRules.firstOrNull { it.first.containsMatchIn(text) }
         val slots = when (match?.second) {
             "media_search" -> mapOf("query" to extractMediaQuery(text))
+            "send_message" -> mapOf("platform" to detectPlatform(text))
             else -> emptyMap()
         }
         return DetectedIntent(
@@ -41,6 +42,13 @@ class IntentDetector(private val aiRouter: AiRouter) {
             rawText = text,
             source = "rule_based_fallback"
         )
+    }
+
+    private fun detectPlatform(text: String): String = when {
+        Regex("(?i)whatsapp business").containsMatchIn(text) -> "whatsapp_business"
+        Regex("(?i)telegram").containsMatchIn(text) -> "telegram"
+        Regex("(?i)\\bsms\\b|text message").containsMatchIn(text) -> "sms"
+        else -> "whatsapp"
     }
 
     private fun extractMediaQuery(text: String): String {

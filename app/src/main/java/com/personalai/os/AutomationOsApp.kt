@@ -99,15 +99,15 @@ class AutomationOsApp : Application() {
         val excelExportTool = ExcelExportTool(outputDir)
         val pdfExtractTool = PdfExtractTool()
         val linkReputationTool = LinkReputationTool()
-        val whatsAppClient = WhatsAppBusinessClient()
-        @Suppress("unused") val telegramClient = TelegramBotClient()
+        val whatsAppBusinessClient = WhatsAppBusinessClient()
+        val telegramClient = TelegramBotClient()
 
         agentRegistry.register(HrAgent(database.attendanceDao()))
         agentRegistry.register(DocumentAgent(pdfExtractTool, excelExportTool))
         agentRegistry.register(MarketingAgent(modeStore))
         agentRegistry.register(LinkSafetyAgent(linkReputationTool))
         agentRegistry.register(JobSearchAgent(aiRouter, excelExportTool))
-        agentRegistry.register(CommunicationAgent(whatsAppClient))
+        agentRegistry.register(CommunicationAgent(whatsAppBusinessClient, telegramClient, applicationContext))
         agentRegistry.register(CareerOpsAgent(aiRouter, database.jobEvaluationDao()))
         agentRegistry.register(MediaAgent(applicationContext))
 
