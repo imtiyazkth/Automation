@@ -10,6 +10,13 @@ import com.personalai.os.core.security.PolicyDecision
 import com.personalai.os.core.security.PolicyEngine
 import java.util.UUID
 
+data class PendingClarification(val step: TaskStep, val missingFields: List<String>)
+
+data class HandledResult(
+    val reports: List<ExecutionReport>,
+    val pendingClarification: PendingClarification? = null
+)
+
 class HeadAgent(
     private val intentDetector: IntentDetector,
     private val taskPlanner: TaskPlanner,
@@ -20,12 +27,12 @@ class HeadAgent(
     private val auditLogger: AuditLogger
 ) {
 
-    suspend fun handle(userInput: String): List<ExecutionReport> {
+    suspend fun handle(userInput: String): HandledResult {
         val intent = intentDetector.detect(userInput)
 
         if (intent.intentType == "help") {
             val capabilities = registry.all().joinToString("\n") { "- ${it.name}: ${it.description}" }
-            return listOf(ExecutionReport.Success("Here's what I can currently help with:\n$capabilities"))
+            return HandledResult(listOf(ExecutionReport.Success("Here's what I can currently help with:\n$capabilities")))
         }
 
         val plan = taskPlanner.plan(intent)
@@ -36,16 +43,15 @@ class HeadAgent(
             } else {
                 "I'm not sure what you'd like me to do with: \"$userInput\""
             }
-            return listOf(
-                ExecutionReport.RequiresUserAction(
-                    message = message,
-                    reason = "No task plan for intent '${intent.intentType}' (confidence=${intent.confidence}, source=${intent.source})"
-                )
-            )
+            return HandledResult(listOf(ExecutionReport.RequiresUserAction(
+                message = message,
+                reason = "No task plan for intent '${intent.intentType}' (confidence=${intent.confidence}, source=${intent.source})"
+            )))
         }
 
         val reports = mutableListOf<ExecutionReport>()
         val completedStepIds = mutableSetOf<String>()
+        var lastPending: PendingClarification? = null
 
         for (step in plan.steps) {
             if (step.dependsOn.any { it !in completedStepIds }) {
@@ -57,56 +63,42 @@ class HeadAgent(
                 continue
             }
 
-            val agentDef = registry.definitionOf(step.agentId)
-            if (agentDef == null) {
-                reports.add(ExecutionReport.Failed("No registered agent for id '${step.agentId}'"))
-                auditLogger.log(AuditEntry(System.currentTimeMillis(), "head-agent", step.action, step.agentId, "FAILED", "unknown agent"))
-                continue
-            }
+            val result = runStep(step)
+            reports.add(result)
+            if (result is ExecutionReport.Success) completedStepIds.add(step.id)
 
-            val mode = modeStore.modeFor(step.agentId)
-            val decision = policyEngine.evaluate(agentDef, step.action, mode)
-
-            when (decision) {
-                is PolicyDecision.Deny -> {
-                    reports.add(ExecutionReport.Failed("Blocked: ${decision.reason}"))
-                    auditLogger.log(AuditEntry(System.currentTimeMillis(), "head-agent", step.action, step.agentId, "BLOCKED", decision.reason))
-                }
-                is PolicyDecision.RequireApproval -> {
-                    val approvalId = UUID.randomUUID().toString()
-                    approvalManager.enqueue(
-                        PendingApproval(
-                            id = approvalId,
-                            step = step,
-                            reason = decision.reason,
-                            draftSummary = "Agent '${agentDef.name}' wants to run '${step.action}'"
-                        )
-                    )
-                    reports.add(ExecutionReport.RequiresUserAction(
-                        message = "Needs your approval: ${agentDef.name} -> ${step.action}. Check the Approvals tab.",
-                        reason = decision.reason
-                    ))
-                    auditLogger.log(AuditEntry(System.currentTimeMillis(), "head-agent", step.action, step.agentId, "REQUIRES_USER_ACTION", decision.reason))
-                }
-                PolicyDecision.Allow -> {
-                    val agentImpl = registry.implementationOf(step.agentId)
-                    val result = if (agentImpl == null) {
-                        ExecutionReport.Failed("Agent '${step.agentId}' has a definition but no registered implementation yet")
-                    } else {
-                        runCatching { agentImpl.execute(step) }
-                            .getOrElse { ExecutionReport.Failed("Unhandled error in '${step.agentId}'", it) }
-                    }
-                    reports.add(result)
-                    if (result is ExecutionReport.Success) completedStepIds.add(step.id)
-                    auditLogger.log(AuditEntry(
-                        System.currentTimeMillis(), step.agentId, step.action, agentDef.name,
-                        resultLabel(result), result.message
-                    ))
-                }
+            if (plan.steps.size == 1 && result is ExecutionReport.RequiresUserAction) {
+                val missing = parseMissingFields(result.reason)
+                if (missing.isNotEmpty()) lastPending = PendingClarification(step, missing)
             }
         }
 
-        return reports
+        return HandledResult(reports, lastPending)
+    }
+
+    suspend fun resolveClarification(pending: PendingClarification, additionalText: String): HandledResult {
+        val field = pending.missingFields.first()
+        val cleanedValue = cleanSlotValue(field, additionalText)
+        val updatedStep = pending.step.copy(params = pending.step.params + (field to cleanedValue))
+        val stillMissing = pending.missingFields.drop(1)
+
+        if (stillMissing.isNotEmpty()) {
+            return HandledResult(
+                reports = listOf(ExecutionReport.RequiresUserAction(
+                    message = "Got it. And ${promptFor(stillMissing.first())}",
+                    reason = "missing ${stillMissing.joinToString("/")}"
+                )),
+                pendingClarification = PendingClarification(updatedStep, stillMissing)
+            )
+        }
+
+        val result = runStep(updatedStep)
+        val newPending = if (result is ExecutionReport.RequiresUserAction) {
+            val missing = parseMissingFields(result.reason)
+            if (missing.isNotEmpty()) PendingClarification(updatedStep, missing) else null
+        } else null
+
+        return HandledResult(listOf(result), newPending)
     }
 
     suspend fun executeApproved(approval: PendingApproval): ExecutionReport {
@@ -124,6 +116,73 @@ class HeadAgent(
             resultLabel(result), "approved by user - ${result.message}"
         ))
         return result
+    }
+
+    private suspend fun runStep(step: TaskStep): ExecutionReport {
+        val agentDef = registry.definitionOf(step.agentId)
+        if (agentDef == null) {
+            auditLogger.log(AuditEntry(System.currentTimeMillis(), "head-agent", step.action, step.agentId, "FAILED", "unknown agent"))
+            return ExecutionReport.Failed("No registered agent for id '${step.agentId}'")
+        }
+
+        val mode = modeStore.modeFor(step.agentId)
+        val decision = policyEngine.evaluate(agentDef, step.action, mode)
+
+        return when (decision) {
+            is PolicyDecision.Deny -> {
+                auditLogger.log(AuditEntry(System.currentTimeMillis(), "head-agent", step.action, step.agentId, "BLOCKED", decision.reason))
+                ExecutionReport.Failed("Blocked: ${decision.reason}")
+            }
+            is PolicyDecision.RequireApproval -> {
+                val approvalId = UUID.randomUUID().toString()
+                approvalManager.enqueue(
+                    PendingApproval(
+                        id = approvalId, step = step, reason = decision.reason,
+                        draftSummary = "Agent '${agentDef.name}' wants to run '${step.action}'"
+                    )
+                )
+                auditLogger.log(AuditEntry(System.currentTimeMillis(), "head-agent", step.action, step.agentId, "REQUIRES_USER_ACTION", decision.reason))
+                ExecutionReport.RequiresUserAction(
+                    message = "Needs your approval: ${agentDef.name} -> ${step.action}. Check the Approvals tab.",
+                    reason = decision.reason
+                )
+            }
+            PolicyDecision.Allow -> {
+                val agentImpl = registry.implementationOf(step.agentId)
+                val result = if (agentImpl == null) {
+                    ExecutionReport.Failed("Agent '${step.agentId}' has a definition but no registered implementation yet")
+                } else {
+                    runCatching { agentImpl.execute(step) }
+                        .getOrElse { ExecutionReport.Failed("Unhandled error in '${step.agentId}'", it) }
+                }
+                auditLogger.log(AuditEntry(
+                    System.currentTimeMillis(), step.agentId, step.action, agentDef.name,
+                    resultLabel(result), result.message
+                ))
+                result
+            }
+        }
+    }
+
+    private fun parseMissingFields(reason: String): List<String> =
+        if (reason.startsWith("missing ")) reason.removePrefix("missing ").split("/").map { it.trim() }.filter { it.isNotBlank() }
+        else emptyList()
+
+    private fun cleanSlotValue(field: String, raw: String): String = when (field) {
+        "recipient" -> raw.trim()
+            .removePrefix("to ").removePrefix("To ")
+            .removePrefix("for ").removePrefix("For ")
+            .trim()
+        else -> raw.trim()
+    }
+
+    private fun promptFor(field: String): String = when (field) {
+        "recipient" -> "who should I send it to?"
+        "message" -> "what should it say?"
+        "url" -> "which link should I check?"
+        "job_description" -> "paste the job description you want evaluated"
+        "query" -> "what should I search for?"
+        else -> "what's the $field?"
     }
 
     private fun resultLabel(report: ExecutionReport): String = when (report) {

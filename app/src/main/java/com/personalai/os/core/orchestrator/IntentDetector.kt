@@ -19,17 +19,33 @@ class IntentDetector(private val aiRouter: AiRouter) {
         Regex("stop all automation|pause everything|kill switch", RegexOption.IGNORE_CASE) to "emergency_control"
     )
 
+    private val mediaLeadIns = listOf(
+        Regex("(?i)^(youtube( and)? )?search( youtube)?( for)?\\s*"),
+        Regex("(?i)^play\\s*"),
+        Regex("(?i)\\s*on youtube\\s*$")
+    )
+
     suspend fun detect(text: String): DetectedIntent {
         val routed = runCatching { aiRouter.classifyIntent(text) }.getOrNull()
         if (routed != null && routed.confidence >= 0.55) return routed
 
         val match = fallbackRules.firstOrNull { it.first.containsMatchIn(text) }
+        val slots = when (match?.second) {
+            "media_search" -> mapOf("query" to extractMediaQuery(text))
+            else -> emptyMap()
+        }
         return DetectedIntent(
             intentType = match?.second ?: "unknown",
             confidence = if (match != null) 0.6 else 0.2,
-            slots = emptyMap(),
+            slots = slots,
             rawText = text,
             source = "rule_based_fallback"
         )
+    }
+
+    private fun extractMediaQuery(text: String): String {
+        var result = text
+        mediaLeadIns.forEach { result = it.replace(result, "") }
+        return result.trim().ifBlank { text }
     }
 }

@@ -1,0 +1,15 @@
+{
+  "id": "media-agent",
+  "name": "Media Agent",
+  "category": "media",
+  "description": "Searches and opens YouTube via an Android Intent - search and open only, no deep playback control.",
+  "capabilities": ["media_search"],
+  "model": "none",
+  "tools": ["android_intent"],
+  "permissions": [],
+  "risk": "low",
+  "automation_mode": "full",
+  "input_schema": "MediaSearchRequest",
+  "output_schema": "MediaSearchResult",
+  "requires_approval_for": []
+}

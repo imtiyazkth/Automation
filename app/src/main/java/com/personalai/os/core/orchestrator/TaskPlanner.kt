@@ -28,6 +28,9 @@ class TaskPlanner {
             "send_message" -> listOf(
                 TaskStep(id = "s1", agentId = "communication-agent", action = "send", params = intent.slots)
             )
+            "media_search" -> listOf(
+                TaskStep(id = "s1", agentId = "media-agent", action = "search_and_open", params = intent.slots)
+            )
             "automation_toggle" -> listOf(
                 TaskStep(id = "s1", agentId = "marketing-agent", action = "toggle_mode", params = intent.slots)
             )

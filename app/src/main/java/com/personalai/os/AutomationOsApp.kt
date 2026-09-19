@@ -11,6 +11,7 @@ import com.personalai.os.core.agents.HrAgent
 import com.personalai.os.core.agents.JobSearchAgent
 import com.personalai.os.core.agents.LinkSafetyAgent
 import com.personalai.os.core.agents.MarketingAgent
+import com.personalai.os.core.agents.MediaAgent
 import com.personalai.os.core.ai.AiRouter
 import com.personalai.os.core.ai.GeminiProvider
 import com.personalai.os.core.ai.LocalAiProvider
@@ -108,6 +109,7 @@ class AutomationOsApp : Application() {
         agentRegistry.register(JobSearchAgent(aiRouter, excelExportTool))
         agentRegistry.register(CommunicationAgent(whatsAppClient))
         agentRegistry.register(CareerOpsAgent(aiRouter, database.jobEvaluationDao()))
+        agentRegistry.register(MediaAgent(applicationContext))
 
         if (BuildConfig.DEBUG) {
             agentRegistry.all().forEach { def ->
