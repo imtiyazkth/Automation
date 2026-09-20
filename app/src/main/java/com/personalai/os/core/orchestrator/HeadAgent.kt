@@ -10,7 +10,7 @@ import com.personalai.os.core.security.PolicyDecision
 import com.personalai.os.core.security.PolicyEngine
 import java.util.UUID
 
-data class PendingClarification(val step: TaskStep, val missingFields: List<String>)
+data class PendingClarification(val step: TaskStep, val missingFields: List<String>, val attempts: Int = 0)
 
 data class HandledResult(
     val reports: List<ExecutionReport>,
@@ -26,6 +26,10 @@ class HeadAgent(
     private val approvalManager: ApprovalManager,
     private val auditLogger: AuditLogger
 ) {
+
+    companion object {
+        private const val MAX_CLARIFICATION_ATTEMPTS = 3
+    }
 
     suspend fun handle(userInput: String): HandledResult {
         val intent = intentDetector.detect(userInput)
@@ -77,6 +81,14 @@ class HeadAgent(
     }
 
     suspend fun resolveClarification(pending: PendingClarification, additionalText: String): HandledResult {
+        val attempts = pending.attempts + 1
+        if (attempts > MAX_CLARIFICATION_ATTEMPTS) {
+            return HandledResult(listOf(ExecutionReport.RequiresUserAction(
+                message = "I'm having trouble understanding this one - let's start fresh. Try rephrasing the whole request in a single message.",
+                reason = "clarification attempts exceeded"
+            )))
+        }
+
         val field = pending.missingFields.first()
         val cleanedValue = cleanSlotValue(field, additionalText)
         val updatedStep = pending.step.copy(params = pending.step.params + (field to cleanedValue))
@@ -88,14 +100,14 @@ class HeadAgent(
                     message = "Got it. And ${promptFor(stillMissing.first())}",
                     reason = "missing ${stillMissing.joinToString("/")}"
                 )),
-                pendingClarification = PendingClarification(updatedStep, stillMissing)
+                pendingClarification = PendingClarification(updatedStep, stillMissing, attempts)
             )
         }
 
         val result = runStep(updatedStep)
         val newPending = if (result is ExecutionReport.RequiresUserAction) {
             val missing = parseMissingFields(result.reason)
-            if (missing.isNotEmpty()) PendingClarification(updatedStep, missing) else null
+            if (missing.isNotEmpty()) PendingClarification(updatedStep, missing, attempts) else null
         } else null
 
         return HandledResult(listOf(result), newPending)

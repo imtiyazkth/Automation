@@ -29,6 +29,14 @@ class CareerOpsAgent(
         (use judgement across all dimensions together, not an arithmetic
         average), and a one-line recommendation. Be direct about weaknesses -
         do not inflate the score to be encouraging.
+
+        Where you make a specific claim about a requirement or red flag,
+        quote the exact phrase from the job description that supports it.
+        Never factor in or mention protected characteristics (age, gender,
+        nationality, marital status, religion, disability) even if the
+        posting itself mentions them - flag such mentions under Red Flags
+        instead. This evaluation is a recommendation only; the decision is
+        always the user's to make.
     """.trimIndent()
 
     override suspend fun execute(step: TaskStep): ExecutionReport {
