@@ -22,7 +22,7 @@ class CommunicationAgent(
         }
     }
 
-    private fun send(step: TaskStep): ExecutionReport {
+    private suspend fun send(step: TaskStep): ExecutionReport {
         val recipient = step.params["recipient"] as? String
         val message = step.params["message"] as? String
         if (recipient == null || message == null) {
@@ -45,17 +45,17 @@ class CommunicationAgent(
                 "missing recipient"
             )
         }
-        val normalized = normalizePhoneNumber(recipient)
-        val uri = Uri.parse("https://wa.me/$normalized?text=${Uri.encode(message)}")
+        val digitsOnly = recipient.replace(Regex("[^\\d]"), "")
+        val uri = Uri.parse("https://wa.me/$digitsOnly?text=${Uri.encode(message)}")
         val intent = Intent(Intent.ACTION_VIEW, uri).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
         return runCatching { appContext.startActivity(intent) }
             .fold(
-                onSuccess = { ExecutionReport.Success("Opened WhatsApp with your message ready for +$normalized \u2014 review and tap Send to actually deliver it.") },
+                onSuccess = { ExecutionReport.Success("Opened WhatsApp with your message ready for +$digitsOnly \u2014 review and tap Send to actually deliver it.") },
                 onFailure = { ExecutionReport.Failed("Couldn't open WhatsApp - is it installed?", it) }
             )
     }
 
-    private fun sendViaWhatsAppBusiness(recipient: String, message: String): ExecutionReport {
+    private suspend fun sendViaWhatsAppBusiness(recipient: String, message: String): ExecutionReport {
         val result = runCatching { whatsAppBusinessClient.sendMessage(recipient, message) }
             .getOrElse { return ExecutionReport.Failed("WhatsApp Business API call threw an error", it) }
         return when {
@@ -66,7 +66,7 @@ class CommunicationAgent(
         }
     }
 
-    private fun sendViaTelegram(recipient: String, message: String): ExecutionReport {
+    private suspend fun sendViaTelegram(recipient: String, message: String): ExecutionReport {
         val result = runCatching { telegramClient.sendMessage(recipient, message) }
             .getOrElse { return ExecutionReport.Failed("Telegram call threw an error", it) }
         return when {
@@ -79,6 +79,4 @@ class CommunicationAgent(
 
     private fun looksLikePhoneNumber(text: String): Boolean =
         text.replace(Regex("[\\s()-]"), "").matches(Regex("^\\+?\\d{7,15}$"))
-
-    private fun normalizePhoneNumber(raw: String): String = raw.replace(Regex("[^\\d+]"), "")
 }
