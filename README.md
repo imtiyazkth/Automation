@@ -103,3 +103,9 @@ Concretely, the highest-value next steps on top of this scaffold are:
 
 See the blueprint document (Part 31) for the full folder-purpose
 breakdown — this scaffold follows it exactly, module for module.
+
+## Adding a new agent
+
+Before writing agent.json or the Kotlin implementation for a new
+capability, fill out docs/agent-spec-template.md. See
+docs/example-spec-media-agent.md for what a completed one looks like.
