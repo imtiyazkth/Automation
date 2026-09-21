@@ -9,16 +9,11 @@ data class PendingApproval(
     val draftSummary: String
 )
 
-/**
- * Holds actions that PolicyEngine flagged as RequireApproval until the user
- * taps Send / Edit / Ignore in the Unified Inbox or Head Agent chat. This is
- * the queue backing the "[Send] [Edit] [Ignore] [Always use this response]"
- * buttons from blueprint Part 12.
- */
 class ApprovalManager {
     private val pending = mutableMapOf<String, PendingApproval>()
 
     fun enqueue(approval: PendingApproval) { pending[approval.id] = approval }
     fun all(): List<PendingApproval> = pending.values.toList()
+    fun get(id: String): PendingApproval? = pending[id]
     fun resolve(id: String): PendingApproval? = pending.remove(id)
 }

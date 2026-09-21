@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +43,7 @@ import com.personalai.os.ui.theme.OsAccent
 import com.personalai.os.ui.theme.OsAiBubble
 import com.personalai.os.ui.theme.OsOnSurfaceMuted
 import com.personalai.os.ui.theme.OsUserBubble
+import com.personalai.os.ui.theme.OsWarning
 
 private val suggestions = listOf(
     "What can you do?",
@@ -85,7 +87,12 @@ fun HeadAgentChatScreen(viewModel: ChatViewModel) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item { Spacer(Modifier.height(8.dp)) }
-                items(messages) { msg -> ChatBubble(msg) }
+                items(messages) { msg ->
+                    when (msg) {
+                        is ChatMessage.Text -> TextBubble(msg)
+                        is ChatMessage.ApprovalCard -> ApprovalCardBubble(msg, viewModel)
+                    }
+                }
                 item { Spacer(Modifier.height(8.dp)) }
             }
         }
@@ -147,7 +154,7 @@ private fun WelcomeState(onSuggestionTap: (String) -> Unit) {
 }
 
 @Composable
-private fun ChatBubble(msg: ChatMessage) {
+private fun TextBubble(msg: ChatMessage.Text) {
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = if (msg.fromUser) Arrangement.End else Arrangement.Start
@@ -167,6 +174,49 @@ private fun ChatBubble(msg: ChatMessage) {
                     )
                 }
                 Text(msg.text, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ApprovalCardBubble(msg: ChatMessage.ApprovalCard, viewModel: ChatViewModel) {
+    var editing by remember { mutableStateOf(false) }
+    var editedText by remember { mutableStateOf(msg.editableMessage ?: "") }
+
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+        Card(
+            modifier = Modifier.widthIn(max = 320.dp),
+            shape = MaterialTheme.shapes.medium
+        ) {
+            Column(Modifier.padding(14.dp)) {
+                Text("NEEDS YOUR OK", style = MaterialTheme.typography.labelSmall, color = OsWarning)
+                Text(msg.summary, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 2.dp))
+                Text(msg.reason, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
+
+                if (editing) {
+                    OutlinedTextField(
+                        value = editedText,
+                        onValueChange = { editedText = it },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        label = { Text("Message") }
+                    )
+                }
+
+                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (editing) {
+                        Button(onClick = {
+                            viewModel.approveEdited(msg.approvalId, editedText)
+                            editing = false
+                        }) { Text("Send edited") }
+                    } else {
+                        Button(onClick = { viewModel.approveSend(msg.approvalId) }) { Text("Send") }
+                        if (msg.editableMessage != null) {
+                            OutlinedButton(onClick = { editing = true }) { Text("Edit") }
+                        }
+                    }
+                    OutlinedButton(onClick = { viewModel.ignoreApproval(msg.approvalId) }) { Text("Ignore") }
+                }
             }
         }
     }
