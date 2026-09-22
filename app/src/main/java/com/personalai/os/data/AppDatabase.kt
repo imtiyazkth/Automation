@@ -8,6 +8,7 @@ import com.personalai.os.data.dao.CrmDao
 import com.personalai.os.data.dao.JobEvaluationDao
 import com.personalai.os.data.dao.MessageDao
 import com.personalai.os.data.dao.PermissionDao
+import com.personalai.os.data.dao.ScheduledTaskDao
 import com.personalai.os.data.entities.AgentPermissionEntity
 import com.personalai.os.data.entities.ApprovalEntity
 import com.personalai.os.data.entities.AttendanceEntity
@@ -22,6 +23,7 @@ import com.personalai.os.data.entities.MessageEntity
 import com.personalai.os.data.entities.OrderEntity
 import com.personalai.os.data.entities.OvertimeEntity
 import com.personalai.os.data.entities.RuleEntity
+import com.personalai.os.data.entities.ScheduledTaskEntity
 import com.personalai.os.data.entities.SettingEntity
 import com.personalai.os.data.entities.UserEntity
 import com.personalai.os.data.entities.WorkflowEntity
@@ -33,9 +35,9 @@ import com.personalai.os.data.entities.WorkflowEntity
         ContactEntity::class, MessageEntity::class,
         CrmLeadEntity::class, OrderEntity::class,
         EmployeeEntity::class, AttendanceEntity::class, LeaveEntity::class, OvertimeEntity::class,
-        WorkflowEntity::class, RuleEntity::class, JobEvaluationEntity::class
+        WorkflowEntity::class, RuleEntity::class, JobEvaluationEntity::class, ScheduledTaskEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -45,4 +47,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun permissionDao(): PermissionDao
     abstract fun messageDao(): MessageDao
     abstract fun jobEvaluationDao(): JobEvaluationDao
+    abstract fun scheduledTaskDao(): ScheduledTaskDao
 }

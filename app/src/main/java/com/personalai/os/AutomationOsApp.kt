@@ -3,6 +3,8 @@ package com.personalai.os
 import android.app.Application
 import android.util.Log
 import androidx.room.Room
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import com.personalai.os.core.agents.AgentRegistry
 import com.personalai.os.core.agents.CareerOpsAgent
 import com.personalai.os.core.agents.CommunicationAgent
@@ -29,6 +31,7 @@ import com.personalai.os.core.security.InMemoryPermissionStore
 import com.personalai.os.core.security.PermissionManager
 import com.personalai.os.core.security.PolicyEngine
 import com.personalai.os.core.workflows.ConditionEvaluator
+import com.personalai.os.core.workflows.ScheduledTaskWorkerFactory
 import com.personalai.os.core.workflows.WorkflowEngine
 import com.personalai.os.data.AppDatabase
 import com.personalai.os.integrations.telegram.TelegramBotClient
@@ -126,5 +129,14 @@ class AutomationOsApp : Application() {
         )
 
         workflowEngine = WorkflowEngine(agentRegistry, policyEngine, modeStore, ConditionEvaluator())
+
+        runCatching {
+            val workConfig = Configuration.Builder()
+                .setWorkerFactory(ScheduledTaskWorkerFactory(headAgent, database.scheduledTaskDao()))
+                .build()
+            WorkManager.initialize(this, workConfig)
+        }.onFailure { e ->
+            CrashLogger.logException("AutomationOsApp", "WorkManager.initialize failed", e)
+        }
     }
 }

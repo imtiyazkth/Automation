@@ -37,6 +37,8 @@ import com.personalai.os.ui.diagnostics.DiagnosticsScreen
 import com.personalai.os.ui.diagnostics.DiagnosticsViewModel
 import com.personalai.os.ui.permissioncenter.PermissionCenterScreen
 import com.personalai.os.ui.permissioncenter.PermissionCenterViewModel
+import com.personalai.os.ui.scheduled.ScheduledTasksScreen
+import com.personalai.os.ui.scheduled.ScheduledTasksViewModel
 import com.personalai.os.ui.theme.AutomationOsTheme
 
 private fun <T : ViewModel> simpleFactory(create: () -> T): ViewModelProvider.Factory =
@@ -114,6 +116,12 @@ class MainActivity : ComponentActivity() {
                                 AgentCenterViewModel(app.agentRegistry, app.modeStore, app.permissionManager)
                             })
                             AgentCenterScreen(vm)
+                        }
+                        composable(Screen.Scheduled.route) {
+                            val vm: ScheduledTasksViewModel = viewModel(factory = simpleFactory {
+                                ScheduledTasksViewModel(app.database.scheduledTaskDao(), app)
+                            })
+                            ScheduledTasksScreen(vm)
                         }
                         composable(Screen.Permissions.route) {
                             val vm: PermissionCenterViewModel = viewModel(factory = simpleFactory {

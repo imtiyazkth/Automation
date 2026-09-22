@@ -5,6 +5,7 @@ sealed class Screen(val route: String, val label: String, val emoji: String) {
     object Dashboard : Screen("dashboard", "Home", "\uD83C\uDFE0")
     object Approvals : Screen("approvals", "Approve", "\u2705")
     object Agents : Screen("agents", "Agents", "\uD83E\uDD16")
+    object Scheduled : Screen("scheduled", "Tasks", "\u23F0")
     object Permissions : Screen("permissions", "Perms", "\uD83D\uDD10")
     object Audit : Screen("audit", "Audit", "\uD83D\uDCDC")
     object Diagnostics : Screen("diagnostics", "Diag", "\uD83E\uDE7A")
@@ -12,5 +13,5 @@ sealed class Screen(val route: String, val label: String, val emoji: String) {
 
 val bottomBarScreens = listOf(
     Screen.Chat, Screen.Dashboard, Screen.Approvals, Screen.Agents,
-    Screen.Permissions, Screen.Audit, Screen.Diagnostics
+    Screen.Scheduled, Screen.Permissions, Screen.Audit, Screen.Diagnostics
 )
