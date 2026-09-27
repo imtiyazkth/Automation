@@ -1,7 +1,11 @@
 package com.personalai.os.ui.chat
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.personalai.os.core.ai.GeminiLiveClient
+import com.personalai.os.core.ai.GeminiLiveEvent
+import com.personalai.os.core.ai.LiveAudioCapture
 import com.personalai.os.core.automation.ApprovalManager
 import com.personalai.os.core.orchestrator.ExecutionReport
 import com.personalai.os.core.orchestrator.HeadAgent
@@ -21,15 +25,78 @@ sealed class ChatMessage {
     ) : ChatMessage()
 }
 
+enum class LiveVoiceState { IDLE, CONNECTING, LISTENING }
+
 class ChatViewModel(
     private val headAgent: HeadAgent,
-    private val approvalManager: ApprovalManager
+    private val approvalManager: ApprovalManager,
+    appContext: Context
 ) : ViewModel() {
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages
 
     private var pending: PendingClarification? = null
+
+    private val geminiLiveClient = GeminiLiveClient()
+    private val liveAudioCapture = LiveAudioCapture(appContext)
+
+    private val _liveTranscript = MutableStateFlow("")
+    val liveTranscript: StateFlow<String> = _liveTranscript
+
+    private val _liveState = MutableStateFlow(LiveVoiceState.IDLE)
+    val liveState: StateFlow<LiveVoiceState> = _liveState
+
+    fun hasMicPermission(): Boolean = liveAudioCapture.hasPermission()
+
+    fun startLiveVoice() {
+        if (!geminiLiveClient.isConfigured()) {
+            _messages.update { it + ChatMessage.Text(false, "Live voice needs GEMINI_API_KEY configured in local.properties.") }
+            return
+        }
+        if (!liveAudioCapture.hasPermission()) {
+            _messages.update { it + ChatMessage.Text(false, "Microphone permission is needed for live voice.") }
+            return
+        }
+        _liveTranscript.value = ""
+        _liveState.value = LiveVoiceState.CONNECTING
+
+        viewModelScope.launch {
+            geminiLiveClient.events.collect { event ->
+                when (event) {
+                    is GeminiLiveEvent.SetupComplete -> {
+                        _liveState.value = LiveVoiceState.LISTENING
+                        liveAudioCapture.start(viewModelScope) { chunk -> geminiLiveClient.sendAudioChunk(chunk) }
+                    }
+                    is GeminiLiveEvent.TextDelta -> _liveTranscript.update { it + event.text }
+                    is GeminiLiveEvent.TurnComplete -> { }
+                    is GeminiLiveEvent.Error -> {
+                        _liveState.value = LiveVoiceState.IDLE
+                        _messages.update { it + ChatMessage.Text(false, "Live voice error: ${event.message}") }
+                    }
+                    is GeminiLiveEvent.Closed -> _liveState.value = LiveVoiceState.IDLE
+                }
+            }
+        }
+        geminiLiveClient.connect()
+    }
+
+    fun stopLiveVoice() {
+        liveAudioCapture.stop()
+        geminiLiveClient.close()
+        _liveState.value = LiveVoiceState.IDLE
+        val transcript = _liveTranscript.value.trim()
+        _liveTranscript.value = ""
+        if (transcript.isNotBlank()) {
+            send(transcript)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        liveAudioCapture.stop()
+        geminiLiveClient.close()
+    }
 
     fun send(text: String) {
         _messages.update { it + ChatMessage.Text(fromUser = true, text = text) }

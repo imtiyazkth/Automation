@@ -7,7 +7,10 @@ import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,10 +18,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -36,11 +41,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.personalai.os.ui.theme.OsAccent
 import com.personalai.os.ui.theme.OsAiBubble
+import com.personalai.os.ui.theme.OsDanger
 import com.personalai.os.ui.theme.OsOnSurfaceMuted
 import com.personalai.os.ui.theme.OsUserBubble
 import com.personalai.os.ui.theme.OsWarning
@@ -54,6 +61,8 @@ private val suggestions = listOf(
 @Composable
 fun HeadAgentChatScreen(viewModel: ChatViewModel) {
     val messages by viewModel.messages.collectAsState()
+    val liveState by viewModel.liveState.collectAsState()
+    val liveTranscript by viewModel.liveTranscript.collectAsState()
     var input by remember { mutableStateOf("") }
     val context = LocalContext.current
     val listState = rememberLazyListState()
@@ -78,7 +87,7 @@ fun HeadAgentChatScreen(viewModel: ChatViewModel) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        if (messages.isEmpty()) {
+        if (messages.isEmpty() && liveState == LiveVoiceState.IDLE) {
             WelcomeState(onSuggestionTap = { viewModel.send(it) })
         } else {
             LazyColumn(
@@ -97,6 +106,10 @@ fun HeadAgentChatScreen(viewModel: ChatViewModel) {
             }
         }
 
+        if (liveState != LiveVoiceState.IDLE) {
+            LiveVoiceBanner(liveState, liveTranscript)
+        }
+
         Row(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -113,6 +126,10 @@ fun HeadAgentChatScreen(viewModel: ChatViewModel) {
                 contentPadding = ButtonDefaults.TextButtonContentPadding
             ) { Text("\uD83C\uDFA4") }
 
+            HoldToTalkButton(viewModel, liveState) {
+                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
@@ -124,6 +141,47 @@ fun HeadAgentChatScreen(viewModel: ChatViewModel) {
                 onClick = { if (input.isNotBlank()) { viewModel.send(input); input = "" } },
                 shape = MaterialTheme.shapes.large
             ) { Text("Send") }
+        }
+    }
+}
+
+@Composable
+private fun HoldToTalkButton(viewModel: ChatViewModel, liveState: LiveVoiceState, onNeedsPermission: () -> Unit) {
+    val listening = liveState != LiveVoiceState.IDLE
+    val bgColor = if (listening) OsDanger else OsAccent.copy(alpha = 0.25f)
+    Box(
+        Modifier
+            .size(40.dp)
+            .background(bgColor, CircleShape)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    if (!viewModel.hasMicPermission()) {
+                        onNeedsPermission()
+                    } else {
+                        viewModel.startLiveVoice()
+                        tryAwaitRelease()
+                        viewModel.stopLiveVoice()
+                    }
+                })
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(if (listening) "\u23FA" else "\uD83D\uDD34")
+    }
+}
+
+@Composable
+private fun LiveVoiceBanner(state: LiveVoiceState, transcript: String) {
+    Surface(color = OsWarning.copy(alpha = 0.15f), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                if (state == LiveVoiceState.CONNECTING) "Connecting\u2026" else "Listening\u2026 (release to send)",
+                style = MaterialTheme.typography.labelSmall,
+                color = OsWarning
+            )
+            if (transcript.isNotBlank()) {
+                Text(transcript, style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }

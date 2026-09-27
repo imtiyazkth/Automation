@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(padding)
                     ) {
                         composable(Screen.Chat.route) {
-                            val vm: ChatViewModel = viewModel(factory = simpleFactory { ChatViewModel(app.headAgent, app.approvalManager) })
+                            val vm: ChatViewModel = viewModel(factory = simpleFactory { ChatViewModel(app.headAgent, app.approvalManager, app) })
                             HeadAgentChatScreen(vm)
                         }
                         composable(Screen.Dashboard.route) {
