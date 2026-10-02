@@ -7,16 +7,20 @@ import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -24,13 +28,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,22 +45,37 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.personalai.os.ui.theme.OsAccent
-import com.personalai.os.ui.theme.OsAiBubble
-import com.personalai.os.ui.theme.OsDanger
-import com.personalai.os.ui.theme.OsOnSurfaceMuted
-import com.personalai.os.ui.theme.OsUserBubble
-import com.personalai.os.ui.theme.OsWarning
+import com.personalai.os.ui.components.AppCard
+import com.personalai.os.ui.components.ApprovalCardContent
+import com.personalai.os.ui.components.IconAction
+import com.personalai.os.ui.components.ScreenHeader
+import com.personalai.os.ui.components.StatusPill
+import com.personalai.os.ui.components.Tone
+import com.personalai.os.ui.components.fadeEdges
+import com.personalai.os.ui.components.rememberReducedMotion
+import com.personalai.os.ui.components.tappable
+import com.personalai.os.ui.theme.AppIcons
+import com.personalai.os.ui.theme.AppTheme
 
 private val suggestions = listOf(
     "What can you do?",
     "Who is absent today?",
     "Check this link: https://example.com"
 )
+
+private val UserBubbleShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomEnd = 6.dp, bottomStart = 20.dp)
+private val AiBubbleShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomEnd = 20.dp, bottomStart = 6.dp)
 
 @Composable
 fun HeadAgentChatScreen(viewModel: ChatViewModel) {
@@ -66,6 +85,7 @@ fun HeadAgentChatScreen(viewModel: ChatViewModel) {
     var input by remember { mutableStateOf("") }
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    val c = AppTheme.colors
 
     val speechLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -82,27 +102,31 @@ fun HeadAgentChatScreen(viewModel: ChatViewModel) {
         ActivityResultContracts.RequestPermission()
     ) { granted -> if (granted) speechLauncher.launch(buildSpeechIntent()) }
 
+    // Items: 0 = top inset, 1..n = messages, n + 1 = bottom inset.
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size + 1)
     }
 
     Column(Modifier.fillMaxSize()) {
+        ScreenHeader(title = "Head agent")
+
         if (messages.isEmpty() && liveState == LiveVoiceState.IDLE) {
-            WelcomeState(onSuggestionTap = { viewModel.send(it) })
+            WelcomeState(modifier = Modifier.weight(1f), onSuggestionTap = { viewModel.send(it) })
         } else {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
+                modifier = Modifier.weight(1f).fillMaxWidth().fadeEdges(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                item { Spacer(Modifier.height(8.dp)) }
+                item { Box(Modifier.height(4.dp)) }
                 items(messages) { msg ->
                     when (msg) {
                         is ChatMessage.Text -> TextBubble(msg)
                         is ChatMessage.ApprovalCard -> ApprovalCardBubble(msg, viewModel)
                     }
                 }
-                item { Spacer(Modifier.height(8.dp)) }
+                item { Box(Modifier.height(8.dp)) }
             }
         }
 
@@ -110,49 +134,91 @@ fun HeadAgentChatScreen(viewModel: ChatViewModel) {
             LiveVoiceBanner(liveState, liveTranscript)
         }
 
+        // Composer
+        Box(Modifier.fillMaxWidth().height(1.dp).background(c.hairline))
         Row(
-            Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Modifier.fillMaxWidth().background(c.background).padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            OutlinedButton(
+            IconAction(
+                icon = AppIcons.Mic,
+                contentDescription = "Dictate a message",
                 onClick = {
                     val hasMic = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
                         PackageManager.PERMISSION_GRANTED
                     if (hasMic) speechLauncher.launch(buildSpeechIntent())
                     else micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                },
-                shape = MaterialTheme.shapes.extraLarge,
-                contentPadding = ButtonDefaults.TextButtonContentPadding
-            ) { Text("\uD83C\uDFA4") }
+                }
+            )
 
-            HoldToTalkButton(viewModel, liveState) {
-                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            val fieldShape = RoundedCornerShape(22.dp)
+            Box(
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = 44.dp)
+                    .clip(fieldShape)
+                    .background(c.card)
+                    .border(1.dp, c.hairline, fieldShape)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                BasicTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = c.text),
+                    cursorBrush = SolidColor(c.accent),
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner ->
+                        if (input.isEmpty()) {
+                            Text("Message your agent", style = MaterialTheme.typography.bodyLarge, color = c.textMuted)
+                        }
+                        inner()
+                    }
+                )
             }
 
-            OutlinedTextField(
-                value = input,
-                onValueChange = { input = it },
-                modifier = Modifier.weight(1f),
-                shape = MaterialTheme.shapes.large,
-                placeholder = { Text("Type a command\u2026") }
-            )
-            Button(
-                onClick = { if (input.isNotBlank()) { viewModel.send(input); input = "" } },
-                shape = MaterialTheme.shapes.large
-            ) { Text("Send") }
+            if (input.isNotBlank()) {
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .tappable(onClick = { viewModel.send(input); input = "" })
+                        .clip(CircleShape)
+                        .background(c.accent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", modifier = Modifier.size(20.dp), tint = c.onAccent)
+                }
+            } else {
+                HoldToTalkButton(viewModel, liveState) {
+                    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun HoldToTalkButton(viewModel: ChatViewModel, liveState: LiveVoiceState, onNeedsPermission: () -> Unit) {
+    val c = AppTheme.colors
+    val reduced = rememberReducedMotion()
     val listening = liveState != LiveVoiceState.IDLE
-    val bgColor = if (listening) OsDanger else OsAccent.copy(alpha = 0.25f)
+    val scale by animateFloatAsState(
+        targetValue = if (listening && !reduced) 0.94f else 1f,
+        animationSpec = spring(dampingRatio = 1f, stiffness = 1200f),
+        label = "holdToTalk"
+    )
     Box(
         Modifier
-            .size(40.dp)
-            .background(bgColor, CircleShape)
+            .size(44.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(CircleShape)
+            .background(if (listening) c.danger else c.raised)
+            .semantics {
+                contentDescription = "Hold to talk"
+                role = Role.Button
+            }
             .pointerInput(Unit) {
                 detectTapGestures(onPress = {
                     if (!viewModel.hasMicPermission()) {
@@ -166,46 +232,56 @@ private fun HoldToTalkButton(viewModel: ChatViewModel, liveState: LiveVoiceState
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(if (listening) "\u23FA" else "\uD83D\uDD34")
+        Icon(
+            AppIcons.Waveform, contentDescription = null, modifier = Modifier.size(20.dp),
+            tint = if (listening) androidx.compose.ui.graphics.Color.White else c.text
+        )
     }
 }
 
 @Composable
 private fun LiveVoiceBanner(state: LiveVoiceState, transcript: String) {
-    Surface(color = OsWarning.copy(alpha = 0.15f), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text(
-                if (state == LiveVoiceState.CONNECTING) "Connecting\u2026" else "Listening\u2026 (release to send)",
-                style = MaterialTheme.typography.labelSmall,
-                color = OsWarning
-            )
-            if (transcript.isNotBlank()) {
-                Text(transcript, style = MaterialTheme.typography.bodyMedium)
-            }
+    val c = AppTheme.colors
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(c.raised)
+            .padding(14.dp)
+    ) {
+        StatusPill(
+            if (state == LiveVoiceState.CONNECTING) "Connecting" else "Listening, release to send",
+            tone = if (state == LiveVoiceState.CONNECTING) Tone.Warning else Tone.Danger,
+            showDot = true
+        )
+        if (transcript.isNotBlank()) {
+            Text(transcript, style = MaterialTheme.typography.bodyMedium, color = c.text, modifier = Modifier.padding(top = 8.dp))
         }
     }
 }
 
 @Composable
-private fun WelcomeState(onSuggestionTap: (String) -> Unit) {
+private fun WelcomeState(modifier: Modifier = Modifier, onSuggestionTap: (String) -> Unit) {
+    val c = AppTheme.colors
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Hi \u2014 I'm your Head Agent.", style = MaterialTheme.typography.titleLarge)
+        Text("What should I take care of?", style = MaterialTheme.typography.titleLarge, color = c.text)
         Text(
-            "Ask me anything, or try one of these:",
-            style = MaterialTheme.typography.bodyMedium,
-            color = OsOnSurfaceMuted,
-            modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+            "Ask in plain language. I'll pick the right agent and check with you before anything sensitive goes out.",
+            style = MaterialTheme.typography.bodyMedium, color = c.textMuted,
+            modifier = Modifier.padding(top = 6.dp, bottom = 20.dp)
         )
-        suggestions.forEach { suggestion ->
-            OutlinedButton(
-                onClick = { onSuggestionTap(suggestion) },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text(suggestion, modifier = Modifier.fillMaxWidth())
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            suggestions.forEach { suggestion ->
+                AppCard(Modifier.fillMaxWidth(), onClick = { onSuggestionTap(suggestion) }) {
+                    Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(suggestion, style = MaterialTheme.typography.bodyMedium, color = c.text, modifier = Modifier.weight(1f))
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = c.textMuted)
+                    }
+                }
             }
         }
     }
@@ -213,25 +289,31 @@ private fun WelcomeState(onSuggestionTap: (String) -> Unit) {
 
 @Composable
 private fun TextBubble(msg: ChatMessage.Text) {
+    val c = AppTheme.colors
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = if (msg.fromUser) Arrangement.End else Arrangement.Start
     ) {
-        Surface(
-            color = if (msg.fromUser) OsUserBubble else OsAiBubble,
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.widthIn(max = 300.dp)
-        ) {
-            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                if (!msg.fromUser) {
-                    Text(
-                        "HEAD AGENT",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = OsAccent,
-                        modifier = Modifier.padding(bottom = 2.dp)
-                    )
-                }
-                Text(msg.text, style = MaterialTheme.typography.bodyLarge)
+        if (msg.fromUser) {
+            Box(
+                Modifier
+                    .widthIn(max = 300.dp)
+                    .clip(UserBubbleShape)
+                    .background(c.accent)
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Text(msg.text, style = MaterialTheme.typography.bodyLarge, color = c.onAccent)
+            }
+        } else {
+            Box(
+                Modifier
+                    .widthIn(max = 320.dp)
+                    .clip(AiBubbleShape)
+                    .background(c.card)
+                    .border(1.dp, c.hairline, AiBubbleShape)
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Text(msg.text, style = MaterialTheme.typography.bodyLarge, color = c.text)
             }
         }
     }
@@ -239,44 +321,17 @@ private fun TextBubble(msg: ChatMessage.Text) {
 
 @Composable
 private fun ApprovalCardBubble(msg: ChatMessage.ApprovalCard, viewModel: ChatViewModel) {
-    var editing by remember { mutableStateOf(false) }
-    var editedText by remember { mutableStateOf(msg.editableMessage ?: "") }
-
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-        Card(
-            modifier = Modifier.widthIn(max = 320.dp),
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Column(Modifier.padding(14.dp)) {
-                Text("NEEDS YOUR OK", style = MaterialTheme.typography.labelSmall, color = OsWarning)
-                Text(msg.summary, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 2.dp))
-                Text(msg.reason, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
-
-                if (editing) {
-                    OutlinedTextField(
-                        value = editedText,
-                        onValueChange = { editedText = it },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        label = { Text("Message") }
-                    )
-                }
-
-                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (editing) {
-                        Button(onClick = {
-                            viewModel.approveEdited(msg.approvalId, editedText)
-                            editing = false
-                        }) { Text("Send edited") }
-                    } else {
-                        Button(onClick = { viewModel.approveSend(msg.approvalId) }) { Text("Send") }
-                        if (msg.editableMessage != null) {
-                            OutlinedButton(onClick = { editing = true }) { Text("Edit") }
-                        }
-                    }
-                    OutlinedButton(onClick = { viewModel.ignoreApproval(msg.approvalId) }) { Text("Ignore") }
-                }
-            }
-        }
+        ApprovalCardContent(
+            summary = msg.summary,
+            reason = msg.reason,
+            message = msg.editableMessage,
+            canEdit = msg.editableMessage != null,
+            onSend = { viewModel.approveSend(msg.approvalId) },
+            onSendEdited = { viewModel.approveEdited(msg.approvalId, it) },
+            onIgnore = { viewModel.ignoreApproval(msg.approvalId) },
+            modifier = Modifier.widthIn(max = 340.dp)
+        )
     }
 }
 
